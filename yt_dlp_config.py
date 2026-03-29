@@ -28,28 +28,26 @@ def get_youtube_cookie_opts() -> dict:
     
     ydl_opts = {}
     
-    # Option 1: Cookie file path (Environment variable or default cookies.txt)
-    cookie_file = os.getenv('YOUTUBE_COOKIE_FILE', 'cookies.txt')
-    if cookie_file:
-        cookie_path = Path(__file__).parent / cookie_file if not os.path.isabs(cookie_file) else Path(cookie_file)
-        if cookie_path.exists():
-            ydl_opts['cookiefile'] = str(cookie_path)
-            # Note: We don't print here to keep logs clean for library usage
-            return ydl_opts
+    # Determine the target cookie file path (always set this so yt-dlp saves updated cookies back to it)
+    cookie_file_env = os.getenv('YOUTUBE_COOKIE_FILE', 'cookies.txt')
+    cookie_path = Path(__file__).parent / cookie_file_env if not os.path.isabs(cookie_file_env) else Path(cookie_file_env)
     
-    # Option 2: Cookie string
-    cookie_string = os.getenv('YOUTUBE_COOKIE')
-    if cookie_string:
-        ydl_opts['cookies'] = cookie_string
-        return ydl_opts
+    ydl_opts['cookiefile'] = str(cookie_path)
     
-    # Option 3: Browser cookies
-    browser = os.getenv('YOUTUBE_BROWSER')
-    if browser:
-        ydl_opts['cookiesfrombrowser'] = (browser,)
-        return ydl_opts
-    
-    return {}
+    # Check if file exists, if not we will fall back to extracting from browser
+    # and yt-dlp will save them into the cookiefile automatically.
+    if not cookie_path.exists():
+        # Option 2: Cookie string
+        cookie_string = os.getenv('YOUTUBE_COOKIE')
+        if cookie_string:
+            ydl_opts['cookies'] = cookie_string
+        else:
+            # Option 3: Browser cookies
+            browser = os.getenv('YOUTUBE_BROWSER')
+            if browser:
+                ydl_opts['cookiesfrombrowser'] = (browser,)
+
+    return ydl_opts
 
 def get_common_ydl_opts(extra_opts: dict = None) -> dict:
     """
