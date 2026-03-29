@@ -76,8 +76,16 @@ def refresh_statuses(processes: dict) -> dict:
 def cmd_start(args) -> None:
     """Start a background task."""
     task_type = args.task_type
-    username = args.username.lstrip('@').lower()
-    name = f"{task_type}-{username}"
+
+    if task_type == 'bot':
+        name = "telegram-bot"
+        username = "bot" # Placeholder
+    else:
+        if not args.username:
+            print("❌ Username is required for download and upload tasks.")
+            return
+        username = args.username.lstrip('@').lower()
+        name = f"{task_type}-{username}"
 
     processes = load_processes()
 
@@ -89,13 +97,17 @@ def cmd_start(args) -> None:
             return
 
     # Build worker command
-    worker = Path(__file__).parent / 'worker.py'
-    cmd = [sys.executable, str(worker), task_type, username]
+    if task_type == 'bot':
+        bot_script = Path(__file__).parent / 'telegram_bot.py'
+        cmd = [sys.executable, str(bot_script)]
+    else:
+        worker = Path(__file__).parent / 'worker.py'
+        cmd = [sys.executable, str(worker), task_type, username]
 
-    if task_type == 'download' and hasattr(args, 'threads'):
-        cmd += ['--threads', str(args.threads)]
-    if task_type == 'upload' and hasattr(args, 'upload_all') and args.upload_all:
-        cmd += ['--all']
+        if task_type == 'download' and hasattr(args, 'threads'):
+            cmd += ['--threads', str(args.threads)]
+        if task_type == 'upload' and hasattr(args, 'upload_all') and args.upload_all:
+            cmd += ['--all']
 
     # Open log file
     log_file = LOGS_DIR / f"{name}.log"
@@ -103,7 +115,7 @@ def cmd_start(args) -> None:
 
     with open(log_file, 'a') as lf:
         lf.write(f"\n{'='*60}\n")
-        lf.write(f"[{datetime.now().isoformat()}] Starting {task_type} for {username}\n")
+        lf.write(f"[{datetime.now().isoformat()}] Starting {task_type}{f' for {username}' if task_type != 'bot' else ''}\n")
         lf.write(f"{'='*60}\n\n")
 
     log_fd = open(log_file, 'a')
@@ -367,8 +379,8 @@ def main():
 
     # start
     start_parser = subparsers.add_parser('start', help='Start a background task')
-    start_parser.add_argument('task_type', choices=['download', 'upload'], help='Task type')
-    start_parser.add_argument('username', help='YouTube channel username')
+    start_parser.add_argument('task_type', choices=['download', 'upload', 'bot'], help='Task type (bot, download, upload)')
+    start_parser.add_argument('username', nargs='?', help='YouTube channel username (required for download/upload)')
     start_parser.add_argument('--threads', type=int, default=3, help='Download threads (default: 3)')
     start_parser.add_argument('--all', dest='upload_all', action='store_true', help='Upload all videos')
     start_parser.set_defaults(func=cmd_start)

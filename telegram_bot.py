@@ -28,7 +28,7 @@ def restricted(func):
     """Decorator to restrict command access to admins only."""
     def wrapper(message, *args, **kwargs):
         if not is_admin(message.from_user.id):
-            bot.reply_to(message, "⛔ You are not authorized to use this bot.")
+            bot.reply_to(message, f"⛔ You are not authorized to use this bot.\n\nYour User ID: `{message.from_user.id}`\n\nAdd this ID to `admin_ids` in `telegram_config.json` to gain access.", parse_mode='Markdown')
             return
         return func(message, *args, **kwargs)
     return wrapper
@@ -67,7 +67,8 @@ def send_welcome(message):
         "`/info <username>` - Show stats for a channel\n"
         "`/logs <name>` - View last 50 log lines\n\n"
         "🛠️ *Raw Command:*\n"
-        "`/ytm <args>` - Run raw ytm.py command"
+        "`/ytm <args>` - Run raw ytm.py command\n\n"
+        f"👤 Your ID: `{message.from_user.id}`"
     )
     bot.reply_to(message, help_text, parse_mode='Markdown')
 

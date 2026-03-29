@@ -231,8 +231,14 @@ $ python ytm.py logs download-elainaaly -f
 You can control `ytm.py` features directly from Telegram. Ensure you have added your Telegram user ID to `admin_ids` in `telegram_config.json`, then start the bot:
 
 ```bash
+# Start bot interactively
 python telegram_bot.py
+
+# OR start bot in the background
+python ytm.py start bot
 ```
+
+*Note: The bot will reply with your User ID if you are unauthorized, making it easy to copy into the config file.*
 
 Then, chat with your bot on Telegram:
 - `/start` - Show help message
