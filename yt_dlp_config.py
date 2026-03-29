@@ -28,12 +28,14 @@ def get_youtube_cookie_opts() -> dict:
     
     ydl_opts = {}
     
-    # Option 1: Cookie file path
-    cookie_file = os.getenv('YOUTUBE_COOKIE_FILE')
-    if cookie_file and os.path.exists(cookie_file):
-        ydl_opts['cookiefile'] = cookie_file
-        # Note: We don't print here to keep logs clean for library usage
-        return ydl_opts
+    # Option 1: Cookie file path (Environment variable or default cookies.txt)
+    cookie_file = os.getenv('YOUTUBE_COOKIE_FILE', 'cookies.txt')
+    if cookie_file:
+        cookie_path = Path(__file__).parent / cookie_file if not os.path.isabs(cookie_file) else Path(cookie_file)
+        if cookie_path.exists():
+            ydl_opts['cookiefile'] = str(cookie_path)
+            # Note: We don't print here to keep logs clean for library usage
+            return ydl_opts
     
     # Option 2: Cookie string
     cookie_string = os.getenv('YOUTUBE_COOKIE')

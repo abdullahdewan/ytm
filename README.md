@@ -252,6 +252,7 @@ Then, chat with your bot on Telegram:
 - `/restart <process-name>` - Restart a task
 - `/delete <process-name>` - Delete a task
 - `/clean [username]` - Clean uploaded files
+- `/update_cookies` - Reply to a uploaded `.txt` file to update YouTube cookies
 - `/ytm <args>` - Run arbitrary ytm commands
 
 ---

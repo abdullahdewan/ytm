@@ -61,7 +61,8 @@ def send_welcome(message):
         "`/stop <name>` - Stop a running task\n"
         "`/restart <name>` - Restart a task\n"
         "`/delete <name>` - Delete a task from list\n"
-        "`/clean [username]` - Clean uploaded files\n\n"
+        "`/clean [username]` - Clean uploaded files\n"
+        "`/update_cookies` - Reply to a .txt file to update YouTube cookies\n\n"
         "📊 *Status Commands:*\n"
         "`/status` - Show status of all tasks\n"
         "`/info <username>` - Show stats for a channel\n"
@@ -176,6 +177,30 @@ def handle_clean(message):
         cmd.append(args[0])
     output = run_ytm_command(cmd)
     bot.reply_to(message, f"```\n{output}\n```", parse_mode='Markdown')
+
+@bot.message_handler(commands=['update_cookies'])
+@restricted
+def handle_update_cookies(message):
+    if not message.reply_to_message or not message.reply_to_message.document:
+        bot.reply_to(message, "⚠️ Usage: Reply to a `.txt` cookie file with `/update_cookies`", parse_mode='Markdown')
+        return
+
+    doc = message.reply_to_message.document
+    if not doc.file_name.endswith('.txt'):
+        bot.reply_to(message, "❌ Please reply to a valid `.txt` file.")
+        return
+
+    try:
+        file_info = bot.get_file(doc.file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+
+        cookie_path = Path(__file__).parent / 'cookies.txt'
+        with open(cookie_path, 'wb') as new_file:
+            new_file.write(downloaded_file)
+
+        bot.reply_to(message, f"✅ Successfully updated YouTube cookies!\nSaved to: `{cookie_path.name}`", parse_mode='Markdown')
+    except Exception as e:
+        bot.reply_to(message, f"❌ Failed to update cookies: {e}")
 
 @bot.message_handler(commands=['ytm'])
 @restricted
