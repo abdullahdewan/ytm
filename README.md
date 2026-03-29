@@ -14,6 +14,7 @@ A Python tool to bulk-download YouTube channel videos using `yt-dlp` and upload 
 - 🍪 **Cookie Authentication** — Bypass YouTube bot detection with cookie support
 - 📋 **Upload Logging** — Track upload history and detailed Telegram API responses
 - 🖥️ **Background Mode** — PM2-like process manager to run tasks in the background with `ytm`
+- 🤖 **Telegram Bot Management** — Manage downloads, uploads, and tasks directly from Telegram
 - 🧹 **Storage Management** — Clean up successfully uploaded files to save disk space
 
 ---
@@ -119,7 +120,8 @@ Edit `telegram_config.json`:
 {
   "local_api_url": "http://localhost:8081",
   "bot_token": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-  "channel_id": "-1001234567890"
+  "channel_id": "-1001234567890",
+  "admin_ids": [123456789]
 }
 ```
 
@@ -128,6 +130,7 @@ Edit `telegram_config.json`:
 | `local_api_url` | URL of the local Telegram Bot API server (default: `http://localhost:8081`) |
 | `bot_token` | Your bot token from [@BotFather](https://t.me/BotFather) |
 | `channel_id` | Target Telegram channel ID (use `-100` prefix for supergroups/channels) |
+| `admin_ids` | List of Telegram User IDs allowed to control the bot (leave empty to allow anyone) |
 
 > **Note:** The bot must be an **admin** in the target channel with permission to post messages.
 
@@ -222,6 +225,28 @@ $ python ytm.py logs download-elainaaly -f
 [Thread 1] Downloading: Video Title...
 ...
 ```
+
+#### Telegram Bot Mode
+
+You can control `ytm.py` features directly from Telegram. Ensure you have added your Telegram user ID to `admin_ids` in `telegram_config.json`, then start the bot:
+
+```bash
+python telegram_bot.py
+```
+
+Then, chat with your bot on Telegram:
+- `/start` - Show help message
+- `/download <username>` - Start background download
+- `/upload <username>` - Start background upload
+- `/upload_all <username>` - Upload all videos
+- `/status` - Check task statuses
+- `/info <username>` - Show channel stats
+- `/logs <process-name>` - Show last 20 log lines
+- `/stop <process-name>` - Stop a running task
+- `/restart <process-name>` - Restart a task
+- `/delete <process-name>` - Delete a task
+- `/clean [username]` - Clean uploaded files
+- `/ytm <args>` - Run arbitrary ytm commands
 
 ---
 

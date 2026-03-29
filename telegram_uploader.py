@@ -300,7 +300,8 @@ def load_telegram_config(config_file: str = 'telegram_config.json') -> dict:
     return {
         'local_api_url': "http://localhost:8081",
         'bot_token': "",
-        'channel_id': ""
+        'channel_id': "",
+        'admin_ids': []
     }
 
 
@@ -336,7 +337,8 @@ def create_sample_config() -> bool:
     config = {
         'local_api_url': "http://localhost:8081",
         'bot_token': "YOUR_BOT_TOKEN_HERE",
-        'channel_id': "YOUR_CHANNEL_ID_HERE"
+        'channel_id': "YOUR_CHANNEL_ID_HERE",
+        'admin_ids': [123456789]
     }
     
     return save_telegram_config(config)

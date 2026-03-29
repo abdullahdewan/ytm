@@ -1,5 +1,6 @@
 {
   "local_api_url": "http://localhost:8081",
   "bot_token": "YOUR_BOT_TOKEN_HERE",
-  "channel_id": "YOUR_CHANNEL_ID_HERE"
+  "channel_id": "YOUR_CHANNEL_ID_HERE",
+  "admin_ids": [123456789]
 }
