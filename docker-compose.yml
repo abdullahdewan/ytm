@@ -1,0 +1,26 @@
+services:
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    container_name: telegram-bot-api
+    restart: always
+    ports:
+      - "8081:8081"
+      - "8082:8082"
+    volumes:
+      - ./server-data:/var/lib/telegram-bot-api
+      # Mount your host's downloads folder to /var/downloads in the container
+      - ./downloads:/var/downloads:ro
+    env_file:
+      - .env
+    environment:
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - YOUTUBE_COOKIE_FILE=${YOUTUBE_COOKIE_FILE}
+      - YOUTUBE_COOKIE=${YOUTUBE_COOKIE}
+      - YOUTUBE_BROWSER=${YOUTUBE_BROWSER}
+    # Use environment variables for API credentials
+    command: >
+      telegram-bot-api 
+      --local 
+      --api-id=${TELEGRAM_API_ID} 
+      --api-hash=${TELEGRAM_API_HASH}

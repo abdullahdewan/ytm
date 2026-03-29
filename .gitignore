@@ -1,0 +1,25 @@
+# Local environment
+dl_env/
+vnev/
+.env
+
+# Data and logs
+server-data/
+downloads/
+channels_info/
+logs/
+arms_cache/
+*.json
+!telegram_config.json.example
+!*.json.example
+!requirements.txt
+
+# Python
+__pycache__/
+*.pyc
+
+# Others
+*.zip
+.qoder/
+
+cookies.txt
