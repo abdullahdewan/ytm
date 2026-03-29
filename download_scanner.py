@@ -140,12 +140,12 @@ def scan_existing_downloads(username: str, channel_data: dict, verbose: bool = T
             # Check if video exists
             exists = check_video_exists(video_id, username, video_type)
             
-            # Optionally check if uploaded
-            is_uploaded = False
-            if check_upload_status:
-                is_uploaded = check_video_uploaded(video_id, username)
+            # Skip if already uploaded (no need to re-download cleaned files)
+            is_uploaded = check_video_uploaded(video_id, username)
+            if exists or is_uploaded:
+                continue
             
-            if not exists or (check_upload_status and not is_uploaded):
+            if not exists:
                 # Add to missing list
                 video_info = VideoInfo(
                     id=video_id,
@@ -281,6 +281,78 @@ def log_uploaded_video(video_id: str, username: str, success: bool = True,
     except Exception as e:
         print(f"Error logging upload: {e}")
         return False
+
+
+def clean_uploaded_files(username: str = None) -> dict:
+    """
+    Delete downloaded video files that have already been uploaded.
+    
+    Args:
+        username: Optional channel username. If None, cleans all channels.
+        
+    Returns:
+        Dictionary with 'deleted' count, 'freed_bytes', and 'errors'.
+    """
+    downloads_dir = get_downloads_dir()
+    logs_dir = get_logs_dir()
+    extensions = ['.mp4', '.mkv', '.webm', '.flv', '.avi']
+    result = {'deleted': 0, 'freed_bytes': 0, 'errors': 0, 'channels': []}
+    
+    # Determine which channels to clean
+    if username:
+        usernames = [username.lower()]
+    else:
+        # Find all upload logs
+        usernames = []
+        for log_file in logs_dir.glob('*_upload_log.json'):
+            name = log_file.stem.replace('_upload_log', '')
+            usernames.append(name)
+    
+    for uname in usernames:
+        log_path = logs_dir / f'{uname}_upload_log.json'
+        if not log_path.exists():
+            print(f"⚠️  No upload log found for '{uname}', skipping.")
+            continue
+        
+        with open(log_path, 'r', encoding='utf-8') as f:
+            uploaded_ids = json.load(f)
+        
+        # Get successfully uploaded IDs
+        uploaded = [vid for vid, status in uploaded_ids.items() if status is True]
+        if not uploaded:
+            print(f"ℹ️  No uploaded videos for '{uname}'.")
+            continue
+        
+        channel_deleted = 0
+        channel_freed = 0
+        
+        for video_id in uploaded:
+            for video_type in ['videos', 'shorts', 'streams']:
+                for ext in extensions:
+                    paths = [
+                        downloads_dir / uname / video_type / f"{video_id}{ext}",
+                        downloads_dir / uname.lower() / video_type / f"{video_id}{ext}",
+                    ]
+                    for filepath in paths:
+                        if filepath.exists():
+                            try:
+                                size = filepath.stat().st_size
+                                filepath.unlink()
+                                channel_deleted += 1
+                                channel_freed += size
+                                print(f"  🗑️  {filepath.name} ({size / (1024*1024):.1f} MB)")
+                            except Exception as e:
+                                print(f"  ❌ Error deleting {filepath}: {e}")
+                                result['errors'] += 1
+        
+        if channel_deleted > 0:
+            print(f"  ✅ {uname}: Deleted {channel_deleted} files, freed {channel_freed / (1024*1024):.1f} MB")
+            result['channels'].append(uname)
+        
+        result['deleted'] += channel_deleted
+        result['freed_bytes'] += channel_freed
+    
+    return result
 
 
 def log_telegram_response(video_id: str, username: str, response_data: dict,

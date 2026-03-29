@@ -8,7 +8,9 @@ Usage:
     python ytm.py status
     python ytm.py logs <name> [--lines N] [--follow]
     python ytm.py stop <name>
+    python ytm.py restart <name>
     python ytm.py delete <name>
+    python ytm.py clean [username]
 """
 
 import os
@@ -97,13 +99,17 @@ def cmd_start(args) -> None:
 
     log_fd = open(log_file, 'a')
 
-    # Spawn detached process
+    # Spawn detached process with unbuffered output
+    env = os.environ.copy()
+    env['PYTHONUNBUFFERED'] = '1'
+
     proc = subprocess.Popen(
         cmd,
         stdout=log_fd,
         stderr=subprocess.STDOUT,
         start_new_session=True,
         cwd=str(Path(__file__).parent),
+        env=env,
     )
 
     # Register
@@ -225,6 +231,42 @@ def cmd_stop(args) -> None:
         print(f"❌ Permission denied to stop PID {pid}.")
 
 
+def cmd_restart(args) -> None:
+    """Restart a managed process."""
+    name = args.name
+    processes = load_processes()
+
+    if name not in processes:
+        print(f"❌ Process '{name}' not found.")
+        return
+
+    info = processes[name]
+
+    # Stop if running
+    pid = info.get('pid')
+    if pid and is_process_running(pid):
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+            print(f"🛑 Stopped '{name}' (PID {pid})")
+        except Exception:
+            pass
+
+    # Re-start using saved config
+    task_type = info.get('type')
+    username = info.get('username')
+
+    # Build a fake args object
+    class RestartArgs:
+        pass
+    restart_args = RestartArgs()
+    restart_args.task_type = task_type
+    restart_args.username = username
+    restart_args.threads = 3
+    restart_args.upload_all = False
+
+    cmd_start(restart_args)
+
+
 def cmd_delete(args) -> None:
     """Remove a process from the registry."""
     name = args.name
@@ -250,6 +292,30 @@ def cmd_delete(args) -> None:
     del processes[name]
     save_processes(processes)
     print(f"🗑️  Deleted '{name}'")
+
+
+def cmd_clean(args) -> None:
+    """Delete uploaded video files to free disk space."""
+    from download_scanner import clean_uploaded_files
+
+    username = getattr(args, 'username', None)
+
+    if username:
+        username = username.lstrip('@').lower()
+        print(f"🧹 Cleaning uploaded videos for '{username}'...\n")
+    else:
+        print("🧹 Cleaning uploaded videos for all channels...\n")
+
+    result = clean_uploaded_files(username)
+
+    print(f"\n{'='*60}")
+    print(f"🧹 CLEANUP SUMMARY")
+    print(f"{'='*60}")
+    print(f"🗑️  Deleted: {result['deleted']} files")
+    print(f"💾 Freed: {result['freed_bytes'] / (1024*1024):.1f} MB")
+    if result['errors']:
+        print(f"❌ Errors: {result['errors']}")
+    print(f"{'='*60}")
 
 
 # ─── Main ────────────────────────────────────────────────────────
@@ -285,10 +351,20 @@ def main():
     stop_parser.add_argument('name', help='Process name')
     stop_parser.set_defaults(func=cmd_stop)
 
+    # restart
+    restart_parser = subparsers.add_parser('restart', help='Restart a managed process')
+    restart_parser.add_argument('name', help='Process name')
+    restart_parser.set_defaults(func=cmd_restart)
+
     # delete
     delete_parser = subparsers.add_parser('delete', help='Remove a process from the list')
     delete_parser.add_argument('name', help='Process name')
     delete_parser.set_defaults(func=cmd_delete)
+
+    # clean
+    clean_parser = subparsers.add_parser('clean', help='Delete uploaded video files to free space')
+    clean_parser.add_argument('username', nargs='?', default=None, help='Channel username (optional, cleans all if omitted)')
+    clean_parser.set_defaults(func=cmd_clean)
 
     args = parser.parse_args()
 

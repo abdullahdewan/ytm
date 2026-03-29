@@ -72,9 +72,10 @@ def download_single_video(video_info: VideoInfo, username: str, progress_callbac
         # Create download path
         download_path = create_download_path(username, video_type)
         
-        # Configure yt-dlp options
+        # Configure yt-dlp options (2GB = Telegram local API limit)
         ydl_opts = {
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best',
+            'format': '(bestvideo[ext=mp4][filesize<2G]+bestaudio[ext=m4a]/bestvideo[filesize<2G]+bestaudio/best[filesize<2G]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best)',
+            'max_filesize': 2 * 1024 * 1024 * 1024,  # 2GB hard limit
             'outtmpl': str(download_path / f'{video_id}.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
