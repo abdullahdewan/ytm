@@ -5,11 +5,17 @@ Handles YouTube authentication (cookies) from environment variables.
 
 import os
 import yt_dlp
+from pathlib import Path
 from dotenv import load_dotenv
 
 def load_config():
-    """Load environment variables."""
-    load_dotenv()
+    """Load environment variables from .env file in the project root."""
+    env_path = Path(__file__).parent / '.env'
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
+    else:
+        # Fallback to default search if .env not in same dir
+        load_dotenv()
 
 def get_youtube_cookie_opts() -> dict:
     """

@@ -22,6 +22,14 @@ import subprocess
 import argparse
 from pathlib import Path
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file at startup
+env_path = Path(__file__).parent / '.env'
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
 
 
 LOGS_DIR = Path(__file__).parent / 'logs'

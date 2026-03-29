@@ -6,6 +6,15 @@ Called by ytm.py — not intended to be run directly by users.
 import sys
 import argparse
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent / '.env'
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
+
 from channel_extractor import load_channel_info, sanitize_username, scan_and_save_channel
 from download_scanner import (
     scan_existing_downloads,

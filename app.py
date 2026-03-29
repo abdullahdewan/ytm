@@ -9,6 +9,15 @@ Handles user input and orchestrates the workflow:
 
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent / '.env'
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
+
 from channel_extractor import (
     scan_and_save_channel,
     load_channel_info,

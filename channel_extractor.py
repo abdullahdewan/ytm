@@ -8,6 +8,14 @@ import json
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent / '.env'
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
+
 from yt_dlp_config import get_youtube_cookie_opts
 
 
