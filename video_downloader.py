@@ -74,7 +74,7 @@ def download_single_video(video_info: VideoInfo, username: str, progress_callbac
         
         # Configure yt-dlp options
         ydl_opts = {
-            'format': 'bestvideo+bestaudio/best',
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best',
             'outtmpl': str(download_path / f'{video_id}.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
