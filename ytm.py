@@ -6,6 +6,7 @@ Usage:
     python ytm.py start download <username> [--threads N]
     python ytm.py start upload <username> [--all]
     python ytm.py status
+    python ytm.py info <username>
     python ytm.py logs <name> [--lines N] [--follow]
     python ytm.py stop <name>
     python ytm.py restart <name>
@@ -160,6 +161,35 @@ def cmd_status(args) -> None:
 
         print(f"{name:<30} {pid:<8} {status_str:<10} {task_type:<10} {started:<20}")
 
+    print()
+
+
+def cmd_info(args) -> None:
+    """Show download/upload stats for a channel."""
+    from download_scanner import get_channel_stats
+
+    username = args.username.lstrip('@').lower()
+    print(f"\n📊 Channel stats for '{username}'\n")
+
+    stats = get_channel_stats(username)
+
+    if stats['total'] == 0:
+        print(f"  ⚠️  No channel info found for '{username}'.")
+        print(f"  Run a download first to scan the channel.")
+        return
+
+    print(f"  {'Category':<12} {'Total':>7} {'Downloaded':>12} {'Uploaded':>10} {'⬇ Pending':>11} {'⬆ Pending':>11}")
+    print(f"  {'─'*63}")
+
+    for vtype in ['videos', 'shorts', 'streams']:
+        t = stats['by_type'].get(vtype, {})
+        total = t.get('total', 0)
+        dl = t.get('downloaded', 0)
+        up = t.get('uploaded', 0)
+        print(f"  {vtype.capitalize():<12} {total:>7} {dl:>12} {up:>10} {'':>11} {'':>11}")
+
+    print(f"  {'─'*63}")
+    print(f"  {'TOTAL':<12} {stats['total']:>7} {stats['downloaded']:>12} {stats['uploaded']:>10} {stats['pending_download']:>11} {stats['pending_upload']:>11}")
     print()
 
 
@@ -338,6 +368,11 @@ def main():
     # status
     status_parser = subparsers.add_parser('status', help='Show status of all processes')
     status_parser.set_defaults(func=cmd_status)
+
+    # info
+    info_parser = subparsers.add_parser('info', help='Show download/upload stats for a channel')
+    info_parser.add_argument('username', help='YouTube channel username')
+    info_parser.set_defaults(func=cmd_info)
 
     # logs
     logs_parser = subparsers.add_parser('logs', help='Show logs for a process')

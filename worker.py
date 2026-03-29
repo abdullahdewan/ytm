@@ -83,39 +83,48 @@ def run_upload(username: str, upload_all: bool = False) -> None:
         print("❌ Cannot connect to Telegram API server.")
         sys.exit(1)
 
-    # Build upload queue
-    upload_queue = []
-    for video_type in ['videos', 'shorts', 'streams']:
-        videos = channel_data.get(video_type, [])
-        for video in videos:
-            video_id = video.get('id')
-            if not video_id:
-                continue
-            if not check_video_exists(video_id, clean_username, video_type):
-                continue
-            if not upload_all:
-                if check_video_uploaded(video_id, clean_username):
+    import time
+    
+    print("\n🔄 Starting continuous upload polling (checks every 60s)...")
+    
+    while True:
+        # Build upload queue by checking local files
+        upload_queue = []
+        for video_type in ['videos', 'shorts', 'streams']:
+            videos = channel_data.get(video_type, [])
+            for video in videos:
+                video_id = video.get('id')
+                if not video_id:
                     continue
-            upload_queue.append({
-                'id': video_id,
-                'title': video.get('title', 'Unknown'),
-                'url': video.get('url', ''),
-                'type': video_type
-            })
+                # Check if it was successfully downloaded
+                if not check_video_exists(video_id, clean_username, video_type):
+                    continue
+                # Check if it was already uploaded
+                if not upload_all:
+                    if check_video_uploaded(video_id, clean_username):
+                        continue
+                        
+                upload_queue.append({
+                    'id': video_id,
+                    'title': video.get('title', 'Unknown'),
+                    'url': video.get('url', ''),
+                    'type': video_type
+                })
 
-    if not upload_queue:
-        print("\n✅ No videos to upload!")
-        return
+        if upload_queue:
+            print(f"\n📦 Found {len(upload_queue)} new videos to upload...")
+            result = uploader.upload_queue(upload_queue, clean_username, verbose=True)
 
-    print(f"\n📦 Uploading {len(upload_queue)} videos...")
-    result = uploader.upload_queue(upload_queue, clean_username, verbose=True)
-
-    print("\n" + "=" * 60)
-    print("🎉 UPLOAD COMPLETE")
-    print("=" * 60)
-    print(f"✅ Uploaded: {result['uploaded']}")
-    print(f"❌ Failed: {result['failed']}")
-    print("=" * 60)
+            print("\n" + "=" * 60)
+            print("✅ BATCH UPLOAD COMPLETE")
+            print("=" * 60)
+            print(f"✅ Uploaded: {result['uploaded']}")
+            print(f"❌ Failed: {result['failed']}")
+            print("=" * 60)
+            print("⏳ Waiting for new videos (checking in 60s)...")
+            
+        # Sleep for 60 seconds before checking again
+        time.sleep(60)
 
 
 def main():

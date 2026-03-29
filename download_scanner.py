@@ -101,6 +101,75 @@ def check_video_uploaded(video_id: str, username: str, upload_log_file: str = No
         return False
 
 
+def get_channel_stats(username: str) -> dict:
+    """
+    Get download/upload statistics for a channel.
+    
+    Args:
+        username: Channel username
+        
+    Returns:
+        Dictionary with total, downloaded, uploaded, pending_download, pending_upload counts.
+    """
+    channels_dir = Path(__file__).parent / 'channels_info'
+    info_file = channels_dir / f'{username.lower()}.json'
+    
+    stats = {
+        'total': 0,
+        'downloaded': 0,
+        'uploaded': 0,
+        'pending_download': 0,
+        'pending_upload': 0,
+        'by_type': {}
+    }
+    
+    if not info_file.exists():
+        return stats
+    
+    with open(info_file, 'r', encoding='utf-8') as f:
+        channel_data = json.load(f)
+    
+    for video_type in ['videos', 'shorts', 'streams']:
+        videos = channel_data.get(video_type, [])
+        type_stats = {'total': 0, 'downloaded': 0, 'uploaded': 0}
+        
+        for video in videos:
+            video_id = video.get('id')
+            if not video_id:
+                continue
+            
+            type_stats['total'] += 1
+            
+            if check_video_exists(video_id, username, video_type):
+                type_stats['downloaded'] += 1
+            
+            if check_video_uploaded(video_id, username):
+                type_stats['uploaded'] += 1
+        
+        stats['by_type'][video_type] = type_stats
+        stats['total'] += type_stats['total']
+        stats['downloaded'] += type_stats['downloaded']
+        stats['uploaded'] += type_stats['uploaded']
+    
+    stats['pending_download'] = stats['total'] - stats['downloaded'] - (stats['uploaded'] - stats['downloaded'])
+    # pending_download = total - downloaded - uploaded_but_cleaned
+    # Simpler: anything not downloaded AND not uploaded
+    stats['pending_download'] = sum(
+        1 for vtype in ['videos', 'shorts', 'streams']
+        for v in channel_data.get(vtype, [])
+        if v.get('id') and not check_video_exists(v['id'], username, vtype) and not check_video_uploaded(v['id'], username)
+    )
+    stats['pending_upload'] = stats['downloaded'] - (stats['uploaded'] - stats['pending_download'])
+    # Simpler: downloaded but not yet uploaded
+    stats['pending_upload'] = sum(
+        1 for vtype in ['videos', 'shorts', 'streams']
+        for v in channel_data.get(vtype, [])
+        if v.get('id') and check_video_exists(v['id'], username, vtype) and not check_video_uploaded(v['id'], username)
+    )
+    
+    return stats
+
+
 def scan_existing_downloads(username: str, channel_data: dict, verbose: bool = True,
                            check_upload_status: bool = False) -> dict[str, list[VideoInfo]]:
     """
