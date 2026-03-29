@@ -9,10 +9,12 @@ A Python tool to bulk-download YouTube channel videos using `yt-dlp` and upload 
 - 🎬 **Bulk Download** — Download all videos, shorts, and streams from a YouTube channel
 - 📤 **Telegram Upload** — Upload downloaded videos to a Telegram channel with thumbnails
 - ⚡ **Multi-threaded** — Parallel downloads with configurable thread count
-- 🔄 **Resume Support** — Automatically skips already-downloaded or uploaded videos
+- 🔄 **Continuous Polling / Resume** — Automatically resumes downloads and continuously polls for new videos to upload
+- 📦 **File Size Limits** — Automatically skips videos over 2GB to comply with Telegram local Bot API limits
 - 🍪 **Cookie Authentication** — Bypass YouTube bot detection with cookie support
 - 📋 **Upload Logging** — Track upload history and detailed Telegram API responses
-- 🖥️ **Background Mode** — PM2-like process manager to run tasks in the background
+- 🖥️ **Background Mode** — PM2-like process manager to run tasks in the background with `ytm`
+- 🧹 **Storage Management** — Clean up successfully uploaded files to save disk space
 
 ---
 
@@ -176,6 +178,9 @@ python ytm.py start upload <username> --all
 # Check status of all tasks
 python ytm.py status
 
+# Show download/upload statistics for a channel
+python ytm.py info <username>
+
 # View logs (last 50 lines)
 python ytm.py logs <process-name>
 
@@ -185,8 +190,14 @@ python ytm.py logs <process-name> --follow
 # Stop a running task
 python ytm.py stop <process-name>
 
+# Restart a stopped or running task
+python ytm.py restart <process-name>
+
 # Remove a task from the list (and delete its log)
 python ytm.py delete <process-name>
+
+# Clean up successfully uploaded files to free disk space
+python ytm.py clean [username]
 ```
 
 Process names follow the pattern `<type>-<username>`, for example:
