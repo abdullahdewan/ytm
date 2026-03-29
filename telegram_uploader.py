@@ -220,6 +220,21 @@ class TelegramUploader:
                 from download_scanner import log_uploaded_video, log_telegram_response
                 log_uploaded_video(video_id, username, success=True)
                 log_telegram_response(video_id, username, result)
+
+                # Delete successfully uploaded file
+                file_path = self.find_video_file(
+                    video_id,
+                    username,
+                    video_info.get('type', 'videos')
+                )
+                if file_path and file_path.exists():
+                    try:
+                        file_path.unlink()
+                        if verbose:
+                            print(f"[CLEANUP] Deleted local file: {file_path.name}")
+                    except Exception as e:
+                        if verbose:
+                            print(f"[CLEANUP ERROR] Could not delete {file_path.name}: {e}")
             elif result is None:
                 # Check if file was not found (skip) or upload failed
                 file_path = self.find_video_file(
