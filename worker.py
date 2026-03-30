@@ -94,7 +94,10 @@ def run_upload(username: str, upload_all: bool = False) -> None:
 
     import time
     
-    print("\n🔄 Starting continuous upload polling (checks every 60s)...")
+    polling_delays = [60, 120, 240]
+    delay_idx = 0
+
+    print(f"\n🔄 Starting upload polling (checks at {', '.join(map(str, polling_delays))}s intervals)...")
     
     while True:
         # Build upload queue by checking local files
@@ -130,10 +133,24 @@ def run_upload(username: str, upload_all: bool = False) -> None:
             print(f"✅ Uploaded: {result['uploaded']}")
             print(f"❌ Failed: {result['failed']}")
             print("=" * 60)
-            print("⏳ Waiting for new videos (checking in 60s)...")
             
-        # Sleep for 60 seconds before checking again
-        time.sleep(60)
+            # Reset polling delay on successful find
+            delay_idx = 0
+        else:
+            if delay_idx >= len(polling_delays):
+                print("\n🛑 No new videos found after final check. Stopping upload process.")
+                break
+
+        # Get current delay and sleep
+        current_delay = polling_delays[delay_idx]
+
+        if not upload_queue:
+            print(f"⏳ No new videos found. Waiting {current_delay}s before next check (Attempt {delay_idx + 1}/{len(polling_delays)})...")
+            delay_idx += 1
+        else:
+            print(f"⏳ Waiting {current_delay}s before next check...")
+
+        time.sleep(current_delay)
 
 
 def main():
