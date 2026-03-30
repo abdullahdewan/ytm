@@ -94,7 +94,8 @@ def check_video_uploaded(video_id: str, username: str, upload_log_file: str = No
         if isinstance(uploaded_ids, list):
             return str(video_id) in [str(id) for id in uploaded_ids]
         elif isinstance(uploaded_ids, dict):
-            return str(video_id) in uploaded_ids
+            # Only return True if the value is explicitly True (successful upload)
+            return uploaded_ids.get(str(video_id)) is True
         else:
             return False
     except Exception:
