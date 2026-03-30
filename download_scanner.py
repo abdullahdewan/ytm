@@ -398,22 +398,23 @@ def clean_uploaded_files(username: str = None) -> dict:
         
         for video_id in uploaded:
             for video_type in ['videos', 'shorts', 'streams']:
-                for ext in extensions:
-                    paths = [
-                        downloads_dir / uname / video_type / f"{video_id}{ext}",
-                        downloads_dir / uname.lower() / video_type / f"{video_id}{ext}",
-                    ]
-                    for filepath in paths:
-                        if filepath.exists():
-                            try:
-                                size = filepath.stat().st_size
-                                filepath.unlink()
-                                channel_deleted += 1
-                                channel_freed += size
-                                print(f"  🗑️  {filepath.name} ({size / (1024*1024):.1f} MB)")
-                            except Exception as e:
-                                print(f"  ❌ Error deleting {filepath}: {e}")
-                                result['errors'] += 1
+                paths = [
+                    downloads_dir / uname / video_type,
+                    downloads_dir / uname.lower() / video_type,
+                ]
+                for p_dir in paths:
+                    if p_dir.exists():
+                        for filepath in p_dir.glob(f"{video_id}*"):
+                            if filepath.is_file():
+                                try:
+                                    size = filepath.stat().st_size
+                                    filepath.unlink()
+                                    channel_deleted += 1
+                                    channel_freed += size
+                                    print(f"  🗑️  {filepath.name} ({size / (1024*1024):.1f} MB)")
+                                except Exception as e:
+                                    print(f"  ❌ Error deleting {filepath.name}: {e}")
+                                    result['errors'] += 1
         
         if channel_deleted > 0:
             print(f"  ✅ {uname}: Deleted {channel_deleted} files, freed {channel_freed / (1024*1024):.1f} MB")

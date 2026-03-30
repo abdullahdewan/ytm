@@ -243,20 +243,28 @@ class TelegramUploader:
                 log_uploaded_video(video_id, username, success=True)
                 log_telegram_response(video_id, username, result)
 
-                # Delete successfully uploaded file
-                file_path = self.find_video_file(
-                    video_id,
-                    username,
-                    video_info.get('type', 'videos')
-                )
-                if file_path and file_path.exists():
-                    try:
-                        file_path.unlink()
-                        if verbose:
-                            print(f"[CLEANUP] Deleted local file: {file_path.name}")
-                    except Exception as e:
-                        if verbose:
-                            print(f"[CLEANUP ERROR] Could not delete {file_path.name}: {e}")
+                # Delete successfully uploaded file AND any yt-dlp leftover artifacts (.part, .ytdl, etc.)
+                base_dir = Path(__file__).parent / 'downloads'
+                video_type = video_info.get('type', 'videos')
+                type_folder = {'videos': 'videos', 'shorts': 'shorts', 'streams': 'streams'}[video_type]
+
+                possible_dirs = [
+                    base_dir / username / type_folder,
+                    base_dir / username.lower() / type_folder
+                ]
+
+                for p_dir in possible_dirs:
+                    if p_dir.exists():
+                        # Delete all files starting with the video_id (catches .mp4, .part, .ytdl, .jpg, etc.)
+                        for leftover_file in p_dir.glob(f"{video_id}*"):
+                            if leftover_file.is_file():
+                                try:
+                                    leftover_file.unlink()
+                                    if verbose:
+                                        print(f"[CLEANUP] Deleted leftover file: {leftover_file.name}")
+                                except Exception as e:
+                                    if verbose:
+                                        print(f"[CLEANUP ERROR] Could not delete {leftover_file.name}: {e}")
             elif result is None:
                 # Check if file was not found (skip) or upload failed
                 file_path = self.find_video_file(
