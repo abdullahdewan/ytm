@@ -6,6 +6,7 @@ Uploads downloaded videos to Telegram channel using local bot API server.
 import os
 import requests
 import json
+import time
 from pathlib import Path
 from typing import TypedDict
 
@@ -129,42 +130,59 @@ class TelegramUploader:
             'supports_streaming': 'true',
         }
         
-        try:
-            with open(file_path, 'rb') as f:
-                files = {'video': (file_path.name, f)}
-                
-                # Add thumbnail to multipart if downloaded
-                if thumbnail_data:
-                    files['thumbnail'] = ('thumb.jpg', thumbnail_data)
-                
-                response = requests.post(
-                    url, 
-                    data=data, 
-                    files=files, 
-                    timeout=600  # 10 minutes timeout for large files
-                )
-                
-                if response.status_code == 200:
-                    if verbose:
-                        print(f"[SUCCESS] Uploaded: {title[:50]}...")
-                    return response.json()
-                else:
-                    if verbose:
-                        print(f"[FAILED] Error {response.status_code}: {response.text}")
-                    return None
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                with open(file_path, 'rb') as f:
+                    files = {'video': (file_path.name, f)}
                     
-        except requests.exceptions.Timeout:
-            if verbose:
-                print(f"[ERROR] Timeout uploading: {title[:50]}...")
-            return False
-        except requests.exceptions.ConnectionError:
-            if verbose:
-                print(f"[ERROR] Connection failed. Is local Telegram API server running?")
-            return False
-        except Exception as e:
-            if verbose:
-                print(f"[ERROR] Upload failed for {title[:50]}...: {e}")
-            return False
+                    # Add thumbnail to multipart if downloaded
+                    if thumbnail_data:
+                        files['thumbnail'] = ('thumb.jpg', thumbnail_data)
+
+                    response = requests.post(
+                        url,
+                        data=data,
+                        files=files,
+                        timeout=600  # 10 minutes timeout for large files
+                    )
+
+                    if response.status_code == 200:
+                        if verbose:
+                            print(f"[SUCCESS] Uploaded: {title[:50]}...")
+                        return response.json()
+
+                    elif response.status_code == 429:
+                        # Handle Rate Limit
+                        error_data = response.json()
+                        retry_after = error_data.get('parameters', {}).get('retry_after', 5)
+                        if verbose:
+                            print(f"⚠️  Rate limited by Telegram (429). Sleeping for {retry_after} seconds...")
+                        time.sleep(retry_after + 1)  # Add 1s buffer
+                        continue # Retry
+
+                    else:
+                        if verbose:
+                            print(f"[FAILED] Error {response.status_code}: {response.text}")
+                        return None
+
+            except requests.exceptions.Timeout:
+                if verbose:
+                    print(f"[ERROR] Timeout uploading: {title[:50]}...")
+                return False
+            except requests.exceptions.ConnectionError:
+                if verbose:
+                    print(f"[ERROR] Connection failed. Is local Telegram API server running?")
+                return False
+            except Exception as e:
+                if verbose:
+                    print(f"[ERROR] Upload failed for {title[:50]}...: {e}")
+                return False
+
+        # If we exhausted retries
+        if verbose:
+            print(f"[FAILED] Exhausted retries for {title[:50]}...")
+        return False
     
     def upload_queue(self, queue: list[VideoInfo], username: str, 
                     start_from_beginning: bool = True, verbose: bool = True) -> dict:
@@ -212,6 +230,10 @@ class TelegramUploader:
             if verbose:
                 print(f"\n[{idx}/{total_videos}] Processing...")
             
+            # Proactive delay to avoid hitting Telegram rate limits (except for first video)
+            if idx > 1:
+                time.sleep(3)
+
             result = self.upload_single_video(video_info, username, verbose)
             
             if result:
