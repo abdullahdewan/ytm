@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import TypedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import json
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -59,7 +61,38 @@ def create_download_path(username: str, video_type: str) -> Path:
     return download_path
 
 
-def download_single_video(video_info: VideoInfo, username: str, progress_callback=None) -> bool:
+def send_admin_notification(message: str) -> None:
+    """Send a Telegram notification to all admins."""
+    config_path = Path(__file__).parent / 'telegram_config.json'
+    if not config_path.exists():
+        return
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+
+        bot_token = config.get('bot_token')
+        local_api_url = config.get('local_api_url', "http://localhost:8081")
+        admin_ids = config.get('admin_ids', [])
+
+        if not bot_token or not admin_ids:
+            return
+
+        url = f"{local_api_url}/bot{bot_token}/sendMessage"
+
+        for admin_id in admin_ids:
+            data = {
+                'chat_id': admin_id,
+                'text': message,
+                'parse_mode': 'HTML'
+            }
+            requests.post(url, data=data, timeout=10)
+    except Exception as e:
+        print(f"Failed to send admin notification: {e}")
+
+
+def download_single_video(video_info: VideoInfo, username: str, progress_callback=None,
+                         shared_state: dict = None, state_lock: threading.Lock = None) -> bool:
     """
     Download a single YouTube video.
     
@@ -67,6 +100,8 @@ def download_single_video(video_info: VideoInfo, username: str, progress_callbac
         video_info: Dictionary with video information
         username: Channel username for folder organization
         progress_callback: Optional callback function for progress updates
+        shared_state: Shared dictionary for tracking errors across threads
+        state_lock: Lock for thread-safe state updates
         
     Returns:
         True if download successful, False otherwise
@@ -117,17 +152,36 @@ def download_single_video(video_info: VideoInfo, username: str, progress_callbac
         # Download the video
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([video_url])
-        
+
+        # Reset bot error count on successful download
+        if shared_state is not None and state_lock is not None:
+            with state_lock:
+                shared_state['bot_errors'] = 0
+
         return True
         
     except Exception as e:
-        print(f"\n❌ Error downloading '{video_title}' ({video_id}): {e}")
+        error_msg = str(e)
+        print(f"\n❌ Error downloading '{video_title}' ({video_id}): {error_msg}")
+
+        # Check for bot block
+        if "Sign in to confirm you're not a bot" in error_msg or "Sign in to confirm you’re not a bot" in error_msg:
+            if shared_state is not None and state_lock is not None:
+                with state_lock:
+                    shared_state['bot_errors'] += 1
+
+                    if shared_state['bot_errors'] >= 3 and not shared_state['abort']:
+                        shared_state['abort'] = True
+                        msg = f"🚨 <b>YTM Bot Blocked!</b>\n\nYouTube has blocked the download process for @{username} with the error:\n<i>\"Sign in to confirm you're not a bot\"</i>\n\nThe download process has been automatically stopped. Please update the cookies using /update_cookies."
+                        print(f"\n{msg}\n")
+                        send_admin_notification(msg)
+
         return False
 
 
 def download_worker(video_info: VideoInfo, username: str, thread_id: int, 
                    completed: list, failed: list, lock: threading.Lock,
-                   verbose: bool = True) -> None:
+                   shared_state: dict, verbose: bool = True) -> None:
     """
     Worker function for multi-threaded downloads.
     
@@ -138,15 +192,22 @@ def download_worker(video_info: VideoInfo, username: str, thread_id: int,
         completed: List to track completed downloads
         failed: List to track failed downloads
         lock: Thread lock for safe list operations
+        shared_state: Shared dictionary for tracking errors
         verbose: Print progress messages
     """
+    # Check if download process should be aborted
+    if shared_state.get('abort'):
+        with lock:
+            failed.append(video_info['id'])
+        return
+
     video_title = video_info.get('title', 'Unknown')
     video_id = video_info['id']
     
     if verbose:
         print(f"\n🧵 Thread-{thread_id}: Starting download - {video_title[:50]}...")
     
-    success = download_single_video(video_info, username)
+    success = download_single_video(video_info, username, shared_state=shared_state, state_lock=lock)
     
     with lock:
         if success:
@@ -189,6 +250,11 @@ def download_queue_parallel(queue: list[VideoInfo], username: str,
     
     start_time = time.time()
     
+    shared_state = {
+        'bot_errors': 0,
+        'abort': False
+    }
+
     # Use ThreadPoolExecutor for parallel downloads
     with ThreadPoolExecutor(max_workers=max_threads) as executor:
         futures = {}
@@ -204,6 +270,7 @@ def download_queue_parallel(queue: list[VideoInfo], username: str,
                 completed,
                 failed,
                 lock,
+                shared_state,
                 verbose
             )
             futures[future] = video_info
